@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CTML Figures (Native JS) — スマホでも一瞬で試せる版</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-title">CTML Figures <span class="brand-badge">Native JS</span></div>
+    </div>
+    <nav id="figure-list" class="figure-list" aria-label="Figure一覧"></nav>
+  </aside>
+
+  <main class="panel">
+    <header class="panel-header">
+      <div class="title-block">
+        <h1 id="fig-title">Figure を選択してください</h1>
+        <p id="fig-note" class="fig-note"></p>
+      </div>
+      <div class="controls">
+        <span id="status" class="status"></span>
+        <button id="run-btn" class="run-btn" disabled>Run ▶</button>
+      </div>
+    </header>
+
+    <div id="params-panel" class="params-panel"></div>
+    <div id="output-grid" class="output-grid"></div>
+    <p id="output-hint" class="hint">左のリストからFigureを選び、「Run」を押してください。ブラウザのJavaScriptだけでその場で計算・描画するので、待ち時間はほぼありません。</p>
+
+    <footer id="method-note" class="notes" style="display: none;">
+      <p id="method-note-text"></p>
+    </footer>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="lib/linalg.js"></script>
+<script src="lib/random.js"></script>
+<script src="lib/plot.js"></script>
+<script src="figures/figure2_1.js"></script>
+<script src="figures/figure3_1.js"></script>
+<script src="figures/figure3_2.js"></script>
+<script src="figures/figure3_3.js"></script>
+<script src="figures/figure3_4.js"></script>
+<script src="figures/figure4_2.js"></script>
+<script src="figures/figure4_1.js"></script>
+<script src="figures/figure5_3.js"></script>
+<script src="figures/figure5_4.js"></script>
+<script src="figures/figure6_1.js"></script>
+<script src="figures/figure7_1.js"></script>
+<script src="figures/figure7_4.js"></script>
+<script src="figures/figure8_2.js"></script>
+<script src="figures/figure8_8.js"></script>
+<script src="figures/figure9_3and4.js"></script>
+<script src="figures/figure10_2and4.js"></script>
+<script src="figures/figure10_5.js"></script>
+<script src="figures/figure11_1.js"></script>
+<script src="figures/figure11_4.js"></script>
+<script src="figures/figure11_5.js"></script>
+<script src="figures/figure12.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

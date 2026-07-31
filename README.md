@@ -21,11 +21,13 @@ Kenji Kashima, *Systems Control Theory and Statistical Machine Learning*, Moriki
 
 ### 正誤表および補足情報
 
-- [一覧](./errata.md)
+- [出版社ページ](https://www.morikita.co.jp/books/mid/061481)
 
 ### 数値計算コード
 
 書籍内の数値計算に用いた簡易コードです。可視化による理解の促進を目的として定理などをベタ打ちしたもので、高速化などは考慮しておりません。
+
+- JavaScript [リンク](https://kk-kuctrl.github.io/ctml-book-tmp/js/index.html) ※ ブラウザで実行・結果の確認
 
 - Matlab [.mファイル一式(zip)](https://github.com/ctrl-kuinfo/ctml-book/raw/refs/heads/main/matlab.zip) ※ MATLAB Onlineでも実行可能（Figure 11_1 のみ要sedumiなど）
 

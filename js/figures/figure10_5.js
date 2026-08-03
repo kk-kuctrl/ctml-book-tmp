@@ -20,25 +20,49 @@ window.figureLib.figure10_5 = function (outputGrid, params) {
   ];
 
   // value[I][J], I,J in 0..100 (101 x 101), matching numpy's value[I, J].
-  function initValue() {
+  // Three selectable fields (see the params panel): the textbook's original
+  // 8-bump field, plus two alternatives that stress the swarm differently --
+  // two well-separated peaks (does it split into two groups or converge on
+  // one?) and a concentric-ripple field (many ring-shaped local optima, a
+  // harder case for the deterministic policy to escape).
+  function buildGrid(f) {
     const g = gridSize;
     const value = Array.from({ length: g + 1 }, () => new Array(g + 1).fill(0));
-    for (let I = 0; I <= g; I++) {
-      for (let J = 0; J <= g; J++) {
-        const v =
-          (1.5 * Math.exp(-((I - 20) ** 2) / 1000 - ((J - 20) ** 2) / 1000) +
-            Math.exp(-((I - 20) ** 2) / 1000 - ((J - 90) ** 2) / 500) +
-            Math.exp(-((I - 40) ** 2) / 1000 - ((J - 50) ** 2) / 500) +
-            Math.exp(-((I - 70) ** 2) / 300 - ((J - 70) ** 2) / 500) +
-            1.5 * Math.exp(-((I - 80) ** 2) / 300 - ((J - 40) ** 2) / 500) +
-            Math.exp(-((I - 50) ** 2) / 800 - ((J - 50) ** 2) / 800) +
-            1.2 * Math.exp(-((I - 80) ** 2) / 200 - ((J - 20) ** 2) / 200) +
-            Math.exp(-((I - 90) ** 2) / 200 - ((J - 10) ** 2) / 200)) /
-          10.0;
-        value[I][J] = v;
-      }
-    }
+    for (let I = 0; I <= g; I++) for (let J = 0; J <= g; J++) value[I][J] = f(I, J);
     return value;
+  }
+  function initValueOriginal() {
+    return buildGrid(
+      (I, J) =>
+        (1.5 * Math.exp(-((I - 20) ** 2) / 1000 - ((J - 20) ** 2) / 1000) +
+          Math.exp(-((I - 20) ** 2) / 1000 - ((J - 90) ** 2) / 500) +
+          Math.exp(-((I - 40) ** 2) / 1000 - ((J - 50) ** 2) / 500) +
+          Math.exp(-((I - 70) ** 2) / 300 - ((J - 70) ** 2) / 500) +
+          1.5 * Math.exp(-((I - 80) ** 2) / 300 - ((J - 40) ** 2) / 500) +
+          Math.exp(-((I - 50) ** 2) / 800 - ((J - 50) ** 2) / 800) +
+          1.2 * Math.exp(-((I - 80) ** 2) / 200 - ((J - 20) ** 2) / 200) +
+          Math.exp(-((I - 90) ** 2) / 200 - ((J - 10) ** 2) / 200)) /
+        10.0
+    );
+  }
+  function initValueTwoPeaks() {
+    return buildGrid(
+      (I, J) =>
+        1.5 * Math.exp(-((I - 25) ** 2) / 600 - ((J - 25) ** 2) / 600) + 1.5 * Math.exp(-((I - 75) ** 2) / 600 - ((J - 75) ** 2) / 600)
+    );
+  }
+  function initValueRipple() {
+    const cx = 50,
+      cy = 50;
+    return buildGrid((I, J) => {
+      const r = Math.hypot(I - cx, J - cy);
+      return Math.exp(-((r - 5) ** 2) / 3000) * (1 + Math.cos(r / 6));
+    });
+  }
+  function initValue() {
+    if (params.value_field === "two_peaks") return initValueTwoPeaks();
+    if (params.value_field === "ripple") return initValueRipple();
+    return initValueOriginal();
   }
 
   // Sum of value[i][j] over the sub-grid around (X, Y), restricted to cells
@@ -145,6 +169,15 @@ window.figureLib.figure10_5 = function (outputGrid, params) {
     };
   }
 
+  // Replays the simulation as a short animation (agents crawling along their
+  // already-computed paths) instead of dumping the final trajectory in one
+  // static frame -- the full history is computed up front as before, this
+  // just reveals it progressively. Each frame clears and redraws the chart's
+  // grid/axes via the (otherwise-internal) _drawFrame(), then re-draws the
+  // trajectory-so-far plus a marker at each agent's current position; the
+  // full static picture (final markers + orbit circles) is drawn once the
+  // reveal reaches the end. Runs for a fixed ~2.5s regardless of Tmax, so a
+  // 50,000-step run animates just as fast as a 500-step one.
   function plotSimResult(body, value, Tmax, deterministic) {
     const { state, xList, yList } = simulation(value, iniState, Tmax, deterministic);
     const chart = window.plotlib.createChart(body, {
@@ -156,29 +189,94 @@ window.figureLib.figure10_5 = function (outputGrid, params) {
 
     const iniX = iniState.map((p) => p[0]);
     const iniY = iniState.map((p) => p[1]);
-    chart.scatter(iniX, iniY, { marker: "star", size: 8, color: "black", label: "初期位置" });
-
     const finalX = state.map((p) => p[0]);
     const finalY = state.map((p) => p[1]);
-    chart.scatter(finalX, finalY, { size: 8, color: "red", label: "最終位置" });
+    // Register both legend entries up front (the "final position" scatter
+    // is drawn for real only once the animation completes) -- finish() only
+    // renders whatever's in legendEntries at the time it's called, so this
+    // has to happen before that, even though the red dots appear later.
+    chart.scatter(iniX, iniY, { marker: "star", size: 6, color: "black", filled: false, label: "初期位置" });
+    chart.scatter([], [], { size: 6, color: "red", label: "最終位置" });
+    chart.finish();
+
+    const timeLabel = document.createElement("p");
+    timeLabel.className = "hint";
+    timeLabel.style.margin = "6px 0 0";
+    body.appendChild(timeLabel);
 
     const cycle = ["blue", "orange", "green", "purple", "gray"];
     const nT = 100;
     const tArr = Array.from({ length: nT }, (_, i) => (2 * Math.PI * i) / (nT - 1));
-    for (let i = 0; i < idN; i++) {
-      const color = cycle[i % cycle.length];
-      chart.line(xList[i], yList[i], { color, lineWidth: 1 });
-      const cx = tArr.map((t) => 10 * Math.sin(t) + state[i][0]);
-      const cy = tArr.map((t) => 10 * Math.cos(t) + state[i][1]);
-      chart.line(cx, cy, { color, lineWidth: 1 });
+    const totalLen = xList[0].length;
+    const durationMs = 5000;
+    const t0 = performance.now();
+
+    function drawUpTo(revealCount) {
+      chart._drawFrame();
+      chart.scatter(iniX, iniY, { marker: "star", size: 6, color: "black", filled: false });
+      for (let i = 0; i < idN; i++) {
+        const color = cycle[i % cycle.length];
+        chart.line(xList[i].slice(0, revealCount), yList[i].slice(0, revealCount), { color, lineWidth: 1 });
+      }
+      timeLabel.textContent = revealCount >= totalLen ? `t = ${revealCount} / ${Tmax}（終了）` : `t = ${revealCount} / ${Tmax}`;
+      if (revealCount >= totalLen) {
+        chart.scatter(finalX, finalY, { size: 6, color: "red" });
+        // Always shown once the animation has actually finished, regardless
+        // of the toggle below (which only governs the in-progress view).
+        for (let i = 0; i < idN; i++) {
+          const color = cycle[i % cycle.length];
+          const cx = tArr.map((t) => 10 * Math.sin(t) + state[i][0]);
+          const cy = tArr.map((t) => 10 * Math.cos(t) + state[i][1]);
+          chart.line(cx, cy, { color, lineWidth: 1 });
+        }
+      } else {
+        const curX = [],
+          curY = [];
+        for (let i = 0; i < idN; i++) {
+          curX.push(xList[i][revealCount - 1]);
+          curY.push(yList[i][revealCount - 1]);
+        }
+        chart.scatter(curX, curY, { size: 6, color: "red" });
+        if (params.show_sensor_circles) {
+          for (let i = 0; i < idN; i++) {
+            const color = cycle[i % cycle.length];
+            const cx = tArr.map((t) => 10 * Math.sin(t) + curX[i]);
+            const cy = tArr.map((t) => 10 * Math.cos(t) + curY[i]);
+            chart.line(cx, cy, { color, lineWidth: 1 });
+          }
+        }
+      }
     }
-    chart.finish();
+
+    function tick(now) {
+      // Changing a parameter (e.g. the value-field dropdown) triggers a new
+      // Run before this animation reaches its 2.5s end -- runCurrent()
+      // clears outputGrid.innerHTML each time, but nothing was stopping this
+      // rAF loop, so the orphaned old animation kept redrawing an unattached
+      // (invisible) chart in the background for its full remaining
+      // duration, burning CPU that made the new run's own animation
+      // stutter. Bail out as soon as this chart's canvas is no longer in
+      // the document instead of running to completion regardless.
+      if (!chart.canvas.isConnected) return;
+      const frac = Math.min(1, (now - t0) / durationMs);
+      // Reveal rate is keyed to Tmax (the requested horizon, shared by both
+      // panels), not this panel's own totalLen -- so (b) and (c) advance
+      // through the SAME simulated time t together, rather than each
+      // stretching its own (possibly shorter, if the deterministic policy
+      // converged early) trajectory to fill the same 5s wall-clock window.
+      // A panel that converged early simply reaches its cap sooner and
+      // freezes on its final frame while the other keeps animating.
+      const revealCount = Math.min(totalLen, Math.max(1, Math.round(frac * Tmax)));
+      drawUpTo(revealCount);
+      if (frac < 1 && revealCount < totalLen) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
   }
 
   const value = initValue();
 
   {
-    const body = window.plotlib.makeCard(outputGrid, "Figure 10.5(a) — 価値関数のヒートマップ");
+    const body = window.plotlib.makeCard(outputGrid, "Figure 10.5(a) — 価値場のヒートマップ");
     window.plotlib.createHeatmap(body, value, { width: 420, height: 380 });
   }
 

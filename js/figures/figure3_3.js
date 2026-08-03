@@ -31,7 +31,7 @@ window.figureLib.figure3_3 = function (outputGrid, params) {
       }
     }
     for (let s = 0; s < nSample; s++) {
-      chart.line(ks, x[s], { lineWidth: 2, alpha: 0.8 });
+      chart.line(ks, x[s], { lineWidth: 1, alpha: 0.8 });
     }
     chart.finish();
   }
@@ -57,7 +57,7 @@ window.figureLib.figure3_3 = function (outputGrid, params) {
       }
     }
     for (let s = 0; s < nSample; s++) {
-      chart.line(ks, x[s], { lineWidth: 2, alpha: 0.8 });
+      chart.line(ks, x[s], { lineWidth: 1, alpha: 0.8 });
     }
     chart.finish();
   }

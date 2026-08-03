@@ -25,22 +25,22 @@ window.figureLib.figure6_1 = function (outputGrid, params) {
   }
 
   // A, B, Q are free-text (see the params panel) so they can be typed in
-  // directly instead of via sliders -- a 3x3 matrix + a 3-vector is a lot of
-  // numbers to expose as 15 separate range inputs. Rows are newline/`;`
-  // separated, entries within a row are comma/space separated. Anything
-  // that doesn't parse to a well-formed 3x3 matrix (or 3-vector) falls back
-  // to the textbook's original (A, B, Q) as a whole, rather than risking a
-  // dimension mismatch from mixing a parsed and a default value.
+  // directly instead of via sliders. Rows are newline/`;` separated, entries
+  // within a row are comma/space separated. A's own row count IS the state
+  // dimension (like Figure 8.8), so a 3x3 or a 5x5 A both just work; B/Q
+  // must then match that inferred size, falling back to a unit vector /
+  // identity matrix of that size (rather than the fixed 3-dim default) if
+  // they don't parse -- only a malformed A itself falls back to the whole
+  // original 3-dim (A, B, Q) textbook example.
   const DEFAULT_A_TEXT = "0.8,0.9,0.86\n0.3,0.25,1\n0.1,0.55,0.5";
-  const DEFAULT_B_TEXT = "1,0,0";
-  const DEFAULT_Q_TEXT = "1,0,0\n0,1,0\n0,0,1";
-  function parseSquareMatrix(text, n) {
+  function parseSquareMatrixAny(text) {
     const rows = String(text)
       .trim()
       .split(/[\n;]+/)
       .map((r) => r.trim())
       .filter((r) => r.length > 0);
-    if (rows.length !== n) return null;
+    const n = rows.length;
+    if (n === 0) return null;
     const M = rows.map((r) =>
       r
         .split(/[,\s]+/)
@@ -50,7 +50,11 @@ window.figureLib.figure6_1 = function (outputGrid, params) {
     if (M.some((row) => row.length !== n || row.some((v) => !Number.isFinite(v)))) return null;
     return M;
   }
-  function parseVec(text, n) {
+  function parseSquareMatrixFixed(text, n) {
+    const M = parseSquareMatrixAny(text);
+    return M && M.length === n ? M : null;
+  }
+  function parseVecFixed(text, n) {
     const v = String(text)
       .trim()
       .split(/[,\s]+/)
@@ -59,18 +63,24 @@ window.figureLib.figure6_1 = function (outputGrid, params) {
     if (v.length !== n || v.some((x) => !Number.isFinite(x))) return null;
     return v;
   }
-
-  const xDim = 3;
-  let A = parseSquareMatrix(params.A_text, xDim);
-  let Bvec = parseVec(params.B_text, xDim);
-  let Q = parseSquareMatrix(params.Q_text, xDim);
-  if (!A || !Bvec || !Q) {
-    A = parseSquareMatrix(DEFAULT_A_TEXT, xDim);
-    Bvec = parseVec(DEFAULT_B_TEXT, xDim);
-    Q = parseSquareMatrix(DEFAULT_Q_TEXT, xDim);
+  function defaultB(n) {
+    const v = new Array(n).fill(0);
+    v[0] = 1;
+    return v;
   }
+
+  let A = parseSquareMatrixAny(params.A_text);
+  if (!A) A = parseSquareMatrixAny(DEFAULT_A_TEXT);
+  const xDim = A.length;
+
+  let Bvec = parseVecFixed(params.B_text, xDim);
+  if (!Bvec) Bvec = defaultB(xDim);
+
+  let Q = parseSquareMatrixFixed(params.Q_text, xDim);
+  if (!Q) Q = L.eye(xDim);
+
   const R = 1;
-  const Svec = [0, 0, 0];
+  const Svec = new Array(xDim).fill(0);
 
   // One step of the (discounted) Riccati recursion: given the current PI,
   // returns the optimal gain K (as a length-xDim row vector) and the
@@ -127,15 +137,16 @@ window.figureLib.figure6_1 = function (outputGrid, params) {
   // Lyapunov equation) instead of iterating the Bellman map.
   // ---------------------------------------------------------------
   function policyEvalQterm(Krow) {
-    // M = [I; -K]  (4 x 3), QRSfull = [[Q,S],[S^T,R]] (4 x 4).
-    // Returns M^T @ QRSfull @ M (3 x 3).
-    const M = [...L.eye(xDim), Krow.map((v) => -v)]; // 4 rows x 3 cols
-    const QRSfull = [
-      [Q[0][0], Q[0][1], Q[0][2], Svec[0]],
-      [Q[1][0], Q[1][1], Q[1][2], Svec[1]],
-      [Q[2][0], Q[2][1], Q[2][2], Svec[2]],
-      [Svec[0], Svec[1], Svec[2], R],
-    ];
+    // M = [I; -K]  ((n+1) x n), QRSfull = [[Q,S],[S^T,R]] ((n+1) x (n+1)).
+    // Returns M^T @ QRSfull @ M (n x n).
+    const M = [...L.eye(xDim), Krow.map((v) => -v)]; // (n+1) rows x n cols
+    const QRSfull = L.zeros(xDim + 1, xDim + 1);
+    for (let i = 0; i < xDim; i++) {
+      for (let j = 0; j < xDim; j++) QRSfull[i][j] = Q[i][j];
+      QRSfull[i][xDim] = Svec[i];
+      QRSfull[xDim][i] = Svec[i];
+    }
+    QRSfull[xDim][xDim] = R;
     return L.matMul(L.transpose(M), L.matMul(QRSfull, M));
   }
 

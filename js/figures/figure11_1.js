@@ -429,7 +429,11 @@ window.figureLib.figure11_1 = function (outputGrid, params) {
     for (let k = 0; k <= kBar; k++) {
       const { xs, ys } = ellipseXY(SigmaOpt[k]);
       const kConst = new Array(xs.length).fill(k);
-      chart3d.addLine(kConst, xs, ys, TAB10[k % TAB10.length]);
+      // Only the initial (k=0) and final (k=kBar) distributions are the ones
+      // being steered between -- bold those two so they stand out from the
+      // intermediate-time ellipses.
+      const isEndpoint = k === 0 || k === kBar;
+      chart3d.addLine(kConst, xs, ys, TAB10[k % TAB10.length], { lineWidth: isEndpoint ? 3 : 1.2 });
     }
     chart3d.finish();
 

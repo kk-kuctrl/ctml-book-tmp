@@ -358,6 +358,12 @@ class Chart2D {
         const swatch = document.createElement("span");
         swatch.className = "chart-legend-swatch";
         if (entry.type === "marker") {
+          // The base .chart-legend-swatch box is sized for a line swatch
+          // (16x3, wide and flat) -- border-radius:50% on that squashes a
+          // circle into an ellipse, so give marker swatches their own
+          // square footprint instead.
+          swatch.style.width = "10px";
+          swatch.style.height = "10px";
           swatch.style.background = entry.filled === false ? "transparent" : entry.color;
           swatch.style.border = "2px solid " + entry.color;
           swatch.style.borderRadius = "50%";
@@ -417,8 +423,9 @@ function createChart3D(container, opts) {
   const azim = (o.azim * Math.PI) / 180;
 
   const series = [];
-  function addLine(xs, ys, zs, color) {
-    series.push({ xs, ys, zs, color: resolveColor(color) });
+  function addLine(xs, ys, zs, color, opts) {
+    const lineWidth = opts && opts.lineWidth != null ? opts.lineWidth : 1.2;
+    series.push({ xs, ys, zs, color: resolveColor(color), lineWidth });
   }
 
   function finish() {
@@ -500,8 +507,14 @@ function createChart3D(container, opts) {
     // stay geometrically correct (e.g. Figure 11.1's covariance ellipses)
     // never get stretched. Opt into `stretchToFill` for figures like 8.8
     // where the box is deliberately wide/short and the point is to fill it.
-    const scaleX = o.stretchToFill ? plotW / (maxSx - minSx || 1) : Math.min(plotW / (maxSx - minSx || 1), plotH / (maxSy - minSy || 1));
-    const scaleY = o.stretchToFill ? plotH / (maxSy - minSy || 1) : scaleX;
+    // `contentScale` shrinks the rendered content within its plot area
+    // (independent of canvas size / margin), leaving extra blank space
+    // around it -- e.g. a canvas at 90% size with content at 80% fill.
+    const contentScale = o.contentScale != null ? o.contentScale : 1;
+    const baseScaleX = o.stretchToFill ? plotW / (maxSx - minSx || 1) : Math.min(plotW / (maxSx - minSx || 1), plotH / (maxSy - minSy || 1));
+    const baseScaleY = o.stretchToFill ? plotH / (maxSy - minSy || 1) : baseScaleX;
+    const scaleX = baseScaleX * contentScale;
+    const scaleY = baseScaleY * contentScale;
     const cx = width / 2,
       cy = height / 2;
     const midSx = (minSx + maxSx) / 2,
@@ -568,7 +581,7 @@ function createChart3D(container, opts) {
     for (let s = 0; s < series.length; s++) {
       const pts = projected[s];
       ctx.strokeStyle = series[s].color;
-      ctx.lineWidth = 1.2;
+      ctx.lineWidth = series[s].lineWidth;
       ctx.beginPath();
       pts.forEach((p, i) => {
         const [px, py] = toPx(p);

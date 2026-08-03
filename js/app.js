@@ -46,7 +46,7 @@ const FIGURES = [
     key: "figure3_3",
     chapter: 3,
     title: "Figure 3.3",
-    note: "線形フィードバックのサンプル軌道",
+    note: "線形フィードバックのサンプル軌道と収束性",
     params: [
       { key: "k_bar", label: "ステップ数", default: 10, min: 5, max: 200, step: 1 },
       { key: "n_sample", label: "サンプル数", default: 20, min: 1, max: 50, step: 1 },
@@ -57,7 +57,7 @@ const FIGURES = [
     key: "figure3_4",
     chapter: 3,
     title: "Figure 3.4",
-    note: "周波数重みフィルタと色付き雑音生成（1次系のTustin離散化＋離散リアプノフ方程式）",
+    note: "周波数重みフィルタと有色雑音生成（1次系のTustin離散化＋離散リアプノフ方程式）",
     method:
       "離散リアプノフ方程式 P = APA' + Q は vec(P) = (I - A⊗A)^{-1} vec(Q) とベクトル化し、線形連立方程式として解いています（scipyのsolve_discrete_lyapunovの代わり）。Tustin（双一次変換）離散化も行列演算で直接計算しています。",
     params: [
@@ -93,7 +93,7 @@ const FIGURES = [
     key: "figure5_3",
     chapter: 5,
     title: "Figure 5.3",
-    note: "LQR/LQG制御と色付き雑音下でのカルマンフィルタ推定",
+    note: "LQR/LQG制御と有色雑音下でのカルマンフィルタ推定",
     method: "Figure 3.4と同じ離散リアプノフ方程式（Kronecker積によるベクトル化）とTustin離散化を、カルマンフィルタの定常共分散の計算にも使っています。",
     params: [
       { key: "a", label: "雑音モデル F(s)=1/(s+a) の a", default: 0.3, min: 0.05, max: 2, step: 0.05 },
@@ -104,7 +104,7 @@ const FIGURES = [
     key: "figure5_4",
     chapter: 5,
     title: "Figure 5.4",
-    note: "外れ値に頑健な状態推定（L1正則化）",
+    note: "外れ値に頑健な状態推定",
     method:
       "L1正則化された最小二乗を、射影付きAdamとε-アニーリング（平滑化パラメータεを1e-1から1e-10まで徐々に小さくする継続法／graduated non-convexity）で解いています（cvxpyの代わり）。固定εのままだと真のL1解のようなスパースな残差構造が再現できませんでした。",
     params: [{ key: "k_bar", label: "ステップ数", default: 60, min: 20, max: 150, step: 5 }],
@@ -122,12 +122,12 @@ const FIGURES = [
         key: "A_text",
         type: "matrix",
         rows: 3,
-        label: "A行列（3x3、行は改行区切り・値はカンマ区切り）",
+        label: "A行列（NxN、次元は自由・行は改行区切り、値はカンマ区切り）",
         default: "0.8,0.9,0.86\n0.3,0.25,1\n0.1,0.55,0.5",
         newRow: true,
       },
-      { key: "Q_text", type: "matrix", rows: 3, label: "Q行列（3x3）", default: "1,0,0\n0,1,0\n0,0,1" },
-      { key: "B_text", type: "matrix", rows: 3, label: "B ベクトル（縦、1行に1値）", default: "1\n0\n0" },
+      { key: "Q_text", type: "matrix", rows: 3, label: "Q行列（Aの次元に合わせる）", default: "1,0,0\n0,1,0\n0,0,1" },
+      { key: "B_text", type: "matrix", rows: 3, label: "B ベクトル（縦、Aの次元に合わせる）", default: "1\n0\n0" },
     ],
   },
   {
@@ -147,7 +147,7 @@ const FIGURES = [
     title: "Figure 7.4",
     note: "最小二乗・Ridge・Lasso回帰の比較",
     method:
-      "Lasso回帰は座標降下法（各係数を閉形式のsoft-threshold更新で1つずつ最適化）で解いています。この多項式基底はヴァンデルモンド型で悪条件のため、最初に試した近接勾配法（FISTA）は収束が遅く不安定でした。",
+      "Lasso回帰は座標降下法（各係数を閉形式のsoft-threshold更新で1つずつ最適化）で解いています。（この多項式基底はヴァンデルモンド型で悪条件のため、近接勾配法（FISTA）は収束が遅く不安定でした。）",
     params: [
       { key: "sigma_sq", label: "正則化の重み σ²", default: 0.01, min: 0.001, max: 0.2, step: 0.001 },
       { key: "s_bar", label: "データ数", default: 30, min: 5, max: 60, step: 1 },
@@ -174,6 +174,22 @@ const FIGURES = [
     params: [
       { key: "k_bar", label: "ステップ数", default: 200, min: 20, max: 500, step: 10 },
       { key: "n_sample", label: "サンプル数", default: 5, min: 1, max: 10, step: 1 },
+      {
+        key: "A_text",
+        type: "matrix",
+        rows: 5,
+        label: "A行列（NxN、次元は自由・不安定な場合のみスペクトル半径0.95に自動正規化）",
+        default:
+          "0.42,0.72,0.00,0.30,0.15\n0.09,0.19,0.35,0.40,0.54\n0.42,0.69,0.20,0.88,0.03\n0.67,0.42,0.56,0.14,0.20\n0.80,0.97,0.31,0.69,0.88",
+        newRow: true,
+      },
+      {
+        key: "C_text",
+        type: "matrix",
+        rows: 2,
+        label: "C行列（出力 y=Cx、行数=2固定・列数はAの次元に合わせる）",
+        default: "1,0,0,0,0\n0,1,0,0,0",
+      },
     ],
   },
   {
@@ -193,7 +209,7 @@ const FIGURES = [
     key: "figure10_2and4",
     chapter: 10,
     title: "Figure 10.2(b) & 10.4",
-    note: "KL制御による最適方策とオンラインIRLでの状態コスト推定。P: j→i は状態jから状態iへの遷移重みで、同じjのグループ内で自動的に合計1へ正規化されます（0にすればその遷移を削除でき、トポロジーも自由に変更可）。",
+    note: "KL制御による最適方策とオンライン逆強化学習での状態コスト推定。P: j→i は状態jから状態iへの遷移重みで、同じjのグループ内で自動的に合計1へ正規化されます（0にすればその遷移を削除でき、トポロジーも自由に変更可）。",
     method:
       "L_KL・L_IRLはどちらも凸関数（アフィン項＋log-sum-exp項）なので、scipy.optimize.minimizeの代わりに解析的勾配を手計算してAdamで最小化しています。",
     params: [
@@ -225,18 +241,31 @@ const FIGURES = [
     key: "figure10_5",
     chapter: 10,
     title: "Figure 10.5",
-    note: "マルチエージェントの分散最適化（重め: 数秒かかる場合あり）",
+    note: "マルチエージェントの分散最適化（重め: 数秒かかる場合あり）。センサー範囲は各エージェントがその半径内にいる（自分または他の）エージェントの位置を基準に価値場を感知・合算できる距離で、これが各エージェントの移動判断（現在位置と移動先で感知できる価値の合計を比較）に使われます。",
     params: [
       { key: "id_n", label: "エージェント数", default: 12, min: 2, max: 20, step: 1 },
-      { key: "sensor_range", label: "センサー範囲", default: 8, min: 2, max: 12, step: 1 },
+      { key: "sensor_range", label: "センサー範囲", default: 8, min: 2, max: 15, step: 1 },
       { key: "t_max", label: "シミュレーション長", default: 30000, min: 500, max: 50000, step: 500 },
+      {
+        key: "value_field",
+        type: "select",
+        label: "価値場の種類",
+        default: "original",
+        newRow: true,
+        options: [
+          { value: "original", label: "教科書の例" },
+          { value: "two_peaks", label: "2峰（離れた2箇所）" },
+          { value: "ripple", label: "同心円状のさざ波" },
+        ],
+      },
+      { key: "show_sensor_circles", type: "checkbox", label: "アニメ中もセンサー範囲の丸を表示（終了後は常に表示）", default: true },
     ],
   },
   {
     key: "figure11_1",
     chapter: 11,
     title: "Figure 11.1",
-    note: "共分散を目標値へ操舵する最適制御",
+    note: "状態分布を目標分布へ操舵する最適制御（最適輸送制御）",
     method:
       "半正定値計画問題（SDP）を内点法（infeasible-start Newton法＋対数バリア）で解いています。等式制約（共分散の遷移関係）はKKT連立方程式で厳密に扱い、半正定値制約は-log detバリアで滑らかな目的関数に変換し、バリア係数μを5から3e-7まで25段階で減衰させながらNewton法を反復します（cvxpy/SCSの代わり）。",
     params: [
@@ -397,6 +426,33 @@ function renderParamsPanel(entry) {
       input.value = currentParamValues[p.key];
       input.addEventListener("input", () => {
         currentParamValues[p.key] = input.value;
+        scheduleAutoRun();
+      });
+    } else if (p.type === "select") {
+      // A fixed menu of named choices (e.g. "which value field") instead of
+      // a numeric range -- the figure switches behavior based on the chosen
+      // option's `value`, not a continuously-varying number.
+      input = document.createElement("select");
+      input.className = "params-select";
+      for (const opt of p.options) {
+        const optionEl = document.createElement("option");
+        optionEl.value = opt.value;
+        optionEl.textContent = opt.label;
+        if (opt.value === currentParamValues[p.key]) optionEl.selected = true;
+        input.appendChild(optionEl);
+      }
+      input.addEventListener("change", () => {
+        currentParamValues[p.key] = input.value;
+        scheduleAutoRun();
+      });
+    } else if (p.type === "checkbox") {
+      // A plain on/off toggle -- no numeric value readout, just the label
+      // (above, via the shared header) and the checkbox itself (below).
+      input = document.createElement("input");
+      input.type = "checkbox";
+      input.checked = !!currentParamValues[p.key];
+      input.addEventListener("change", () => {
+        currentParamValues[p.key] = input.checked;
         scheduleAutoRun();
       });
     } else {

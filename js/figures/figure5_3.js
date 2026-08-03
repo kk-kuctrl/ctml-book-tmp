@@ -207,7 +207,7 @@ window.figureLib.figure5_3 = function (outputGrid, params) {
   const xlimBC = [0, Math.min(100, kBar)];
   {
     const body = window.plotlib.makeCard(outputGrid, "Figure 5.3(b) — 位置の推定");
-    const chart = window.plotlib.createChart(body, { xlim: xlimBC, ylim: [-0.2, 0.2], xlabel: "$k$" });
+    const chart = window.plotlib.createChart(body, { xlim: xlimBC, ylim: [-0.5, 0.5], xlabel: "$k$" });
     const sd = lqg.sigmasDiag.map((d) => Math.sqrt(Math.max(0, d[0])));
     const hat0 = col(lqg.xHat, 0);
     chart.fillBetween(

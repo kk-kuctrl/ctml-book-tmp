@@ -19,7 +19,7 @@ window.figureLib.figure3_2 = function (outputGrid, params) {
       const x = new Array(kBar).fill(0);
       x[0] = -0.8 + 0.2 * i;
       for (let k = 0; k < kBar - 1; k++) x[k + 1] = x[k] + 0.1 * (x[k] - x[k] ** 3);
-      chart.line(ks, x, { lineWidth: 2 });
+      chart.line(ks, x, { lineWidth: 1 });
     }
     chart.finish();
   }
@@ -39,7 +39,7 @@ window.figureLib.figure3_2 = function (outputGrid, params) {
         const rand = Math.random();
         x[k + 1] = x[k] + 0.1 * (x[k] - x[k] ** 3) + (rand - 0.5) * (1 - Math.abs(x[k]));
       }
-      chart.line(ks, x, { lineWidth: 2 });
+      chart.line(ks, x, { lineWidth: 1 });
     }
     chart.finish();
   }

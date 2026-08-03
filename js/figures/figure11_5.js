@@ -60,7 +60,7 @@ window.figureLib.figure11_5 = function (outputGrid, params) {
     const pIni = 1;
 
     const body = window.plotlib.makeCard(outputGrid, "Figure 11.5(b) — SGDによる零点探索");
-    const chart = window.plotlib.createChart(body, { xlim: [0, nK], ylim: [-2, 2], xlabel: "$k$", ylabel: "$p_k$" });
+    const chart = window.plotlib.createChart(body, { xlim: [-50, nK], ylim: [-2, 2], xlabel: "$k$", ylabel: "$p_k$" });
     const ks = Array.from({ length: nK + 1 }, (_, k) => k);
 
     for (let setting = 0; setting < nSetting; setting++) {
@@ -71,9 +71,9 @@ window.figureLib.figure11_5 = function (outputGrid, params) {
         const y = Math.random() < 0.5 ? gradL1(pk) : gradL2(pk);
         p[k + 1] = pk - C[setting] / Math.pow(k + 1, alpha[setting]) * y;
       }
-      chart.line(ks, p, { color: palette[setting % palette.length], lineWidth: 2, label: `\\alpha=${alpha[setting]}` });
+      chart.line(ks, p, { color: palette[setting % palette.length], lineWidth: 1, label: `\\alpha=${alpha[setting]}` });
     }
-    chart.scatter([0], [pIni], { color: "black", marker: "circle", size: 8, label: "\\text{Initial Value}" });
+    chart.scatter([0], [pIni], { color: "black", marker: "circle", size: 4, filled: false, label: "\\text{Initial Value}" });
     chart.finish();
   }
 };

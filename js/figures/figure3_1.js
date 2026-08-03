@@ -90,7 +90,7 @@ window.figureLib.figure3_1 = function (outputGrid, params) {
         const noise = Math.random() - 0.5;
         xArr[k + 1] = xArr[k] + 0.1 * (xArr[k] - xArr[k] ** 3) + noise * (1 - Math.abs(xArr[k]));
       }
-      chart.line(ks, xArr, { lineWidth: 2 });
+      chart.line(ks, xArr, { lineWidth: 1 });
     }
     chart.finish();
   }

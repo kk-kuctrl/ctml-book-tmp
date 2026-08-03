@@ -179,6 +179,17 @@ body { background: var(--bg); color: var(--text); font-family: var(--sans); font
   resize: vertical;
 }
 
+.params-select {
+  font-size: 12.5px;
+  color: var(--text);
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .output-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));

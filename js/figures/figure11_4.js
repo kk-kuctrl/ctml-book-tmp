@@ -13,7 +13,7 @@ window.figureLib.figure11_4 = function (outputGrid, params) {
 
   const body = window.plotlib.makeCard(outputGrid, "Figure 11.4 — 確率的勾配降下法による平均推定");
   const chart = window.plotlib.createChart(body, {
-    xlim: [0, nK],
+    xlim: [-5, nK],
     ylim: [-2, 2],
     xlabel: "$k$",
     ylabel: "$p_k$",
@@ -31,10 +31,10 @@ window.figureLib.figure11_4 = function (outputGrid, params) {
       const y = pk - z;
       p[k + 1] = pk - (C[setting] / Math.pow(k + 1, alpha[setting])) * y;
     }
-    chart.line(ks, p, { color: palette[setting % palette.length], lineWidth: 2, label: `$C=${C[setting]}, \\alpha=${alpha[setting]}$` });
+    chart.line(ks, p, { color: palette[setting % palette.length], lineWidth: 1, label: `$C=${C[setting]}, \\alpha=${alpha[setting]}$` });
   }
 
-  chart.scatter([0], [pIni], { color: "black", marker: "circle", size: 8, label: "Initial Value" });
+  chart.scatter([0], [pIni], { color: "black", marker: "circle", size: 4, filled: false, label: "Initial Value" });
 
   chart.finish();
 };

@@ -51,11 +51,11 @@ def simulation(value, ini_state, Tmax, deterministic):
 
     Parameters:
         value (ndarray): (101, 101) value map.
+        ini_state (ndarray): initial agent positions.
         Tmax (int): maximum simulation steps.
         deterministic (bool): if True, always move if estimated value improves.
 
     Returns:
-        ini_state (ndarray): initial agent positions.
         state (ndarray): current agent position (shape: [IDn, 2]).
         x_list (ndarray): trajectory of x-coordinates (shape: [IDn, k]).
         y_list (ndarray): trajectory of y-coordinates (shape: [IDn, k]).

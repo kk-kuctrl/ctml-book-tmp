@@ -96,6 +96,6 @@ def figure7_1b(sigma_sq, n_sample:int=20, s_bar:int=8):
 if __name__ == '__main__':
     figure7_1a(n_sample=20)
 
-    sigma_sq = [0.5, 100, 10**(-6) ]  # standard deviation sigma = 0.5, 10, 10^{-3}
+    sigma_sq = [0.25, 100, 10**(-6) ]  # standard deviation sigma = 0.5, 10, 10^{-3}
 
     figure7_1b(sigma_sq, n_sample=20, s_bar=20)

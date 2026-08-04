@@ -46,7 +46,7 @@ def figure11_5a():
 
 def figure11_5b( N_k = 2000):
     """
-    Runs a SGD simulation to solve L(p)=0.
+    Runs a SGD simulation to minimize L(p) (i.e., solve ∇L(p)=0).
 
     Parameters:
         N_k : simulation time length.

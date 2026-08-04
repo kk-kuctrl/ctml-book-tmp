@@ -85,7 +85,7 @@ def policy_iteration(A, B, Q, R, S, P_opt, beta, K_ini, PI_ini, N_iter):
 def Figure6_1(beta=0.95, N_iter=11):
     #beta = 0.95  # Discount rate for LQR
     x_dim = 3  # Number of state variables
-    u_dim = 1  # Number of control iN_iter = 11  # Number of iterations
+    u_dim = 1  # Number of control inputs
 
     
     # Set up system matrices

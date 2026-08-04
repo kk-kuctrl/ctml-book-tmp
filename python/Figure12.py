@@ -81,8 +81,8 @@ def figure12_3and4(N_x= 100, s_bar = 10, c = 0.1, label="a", kernel="Gaussian"):
     if kernel == "Gaussian":
         K = gaussian_kernel(x_data, x_data, c)  # eq 12.8
         Ktmp = gaussian_kernel(x, x, c)
-        kx = gaussian_kernel(x,x_data, c)
-        title = '3'+label    # eq 12.9
+        kx = gaussian_kernel(x,x_data, c)    # eq 12.9
+        title = '3'+label
     else:
         K = min_kernel(x_data, x_data)  # eq 12.8
         Ktmp = min_kernel(x, x)

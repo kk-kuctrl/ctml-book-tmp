@@ -65,7 +65,7 @@ def simulate_lq_control(A, B_u, B_v, C, mu, Sigma, K, k_bar, x0, mode, Rw=1e-4, 
     K              : list of finite-horizon LQR gains K[k]
     k_bar          : horizon length
     x0             : initial state vector
-    mode           : 'lqr', 'lqg_kalman', 'lqg_pred', or 'lqr_m'
+    mode           : 'lqr', 'lqg_kalman', or 'lqg_pred'
     Rw, Rv         : measurement and process noise covariances
     v              : optional pre-generated process noise sequence
     w              : optional pre-generated observation noise sequence
@@ -289,7 +289,7 @@ obs_noise = np.sqrt(Rw) * np.random.randn(k_bar)
 # Initial state
 mu = np.zeros(x_dim)    # initial mean
 Sigma = np.eye(x_dim)   # initial covariance
-x0 = np.random.multivariate_normal( mu, Sigma )*0.1   # Initial state x0 ~ N(mu, Sigma)
+x0 = np.random.multivariate_normal( mu, Sigma )*0.1   # Initial state x0 ~ N(mu, Sigma)*0.1
 
 # --- 5. LQR Gain Calculation ---
 # Compute LQR feedback gains

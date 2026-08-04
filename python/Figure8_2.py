@@ -11,7 +11,7 @@ np.random.seed(24)
 def initialization(k_bar=1000):
     # ARX parameters
     a = [1.2, -0.47, 0.06]  # coefficient of (z-0.5)(z-0.4)(z-0.3)
-    b = [1.0, 2.0]          # b2, b1
+    b = [1.0, 2.0]          # b1, b2
 
     q0 = np.array([0,0,0,1,1]) # initial states and inputs, note that u0=u1=1
 
@@ -93,7 +93,7 @@ def figure8_2a(k_bar=1000):
     _,_,_,_,y = sysid_module(p_star,a_dim,q0,u,v,p0,Sigma0/sigma_v,alpha)
     plt.plot(y,label=r'$u_k=1,v_k\sim {\mathcal N}(0,1)$',linewidth=0.5)
 
-    # u_k ~ N(1,1), v_k~N(0,1)
+    # u_k ~ N(1,1), v_k~N(0,0.01)
     sigma_v = 0.1
     v = np.random.randn(k_bar)*sigma_v # random noise N(0,sigma_v^2)
     u = np.ones(k_bar) + np.random.randn(k_bar)  # random input N(1,1)

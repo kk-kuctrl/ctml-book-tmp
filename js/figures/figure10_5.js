@@ -10,7 +10,9 @@ window.figureLib.figure10_5 = function (outputGrid, params) {
   // Fixed constants (not parametrized), matching the Python source exactly.
   const gridSize = 100;
   const beta = 1;
-  const iniState = Array.from({ length: idN }, () => [10, 10]);
+  const initX = Math.min(gridSize, Math.max(0, params.init_x));
+  const initY = Math.min(gridSize, Math.max(0, params.init_y));
+  const iniState = Array.from({ length: idN }, () => [initX, initY]);
 
   const directions = [
     [1, 0],
@@ -169,15 +171,12 @@ window.figureLib.figure10_5 = function (outputGrid, params) {
     };
   }
 
-  // Replays the simulation as a short animation (agents crawling along their
-  // already-computed paths) instead of dumping the final trajectory in one
-  // static frame -- the full history is computed up front as before, this
-  // just reveals it progressively. Each frame clears and redraws the chart's
-  // grid/axes via the (otherwise-internal) _drawFrame(), then re-draws the
-  // trajectory-so-far plus a marker at each agent's current position; the
-  // full static picture (final markers + orbit circles) is drawn once the
-  // reveal reaches the end. Runs for a fixed ~2.5s regardless of Tmax, so a
-  // 50,000-step run animates just as fast as a 500-step one.
+  // Builds the chart and a drawUpTo(revealCount) that renders the trajectory
+  // (up to revealCount steps) plus a "current position" marker, or -- once
+  // revealCount reaches the end -- the full static picture (final markers +
+  // orbit/sensor circles). Playback itself (auto-play, the scrub bar, the
+  // play/pause button) lives outside, shared across both (b) and (c), so
+  // scrubbing to a given t shows both panels at that same simulated time.
   function plotSimResult(body, value, Tmax, deterministic) {
     const { state, xList, yList } = simulation(value, iniState, Tmax, deterministic);
     const chart = window.plotlib.createChart(body, {
@@ -199,17 +198,10 @@ window.figureLib.figure10_5 = function (outputGrid, params) {
     chart.scatter([], [], { size: 6, color: "red", label: "最終位置" });
     chart.finish();
 
-    const timeLabel = document.createElement("p");
-    timeLabel.className = "hint";
-    timeLabel.style.margin = "6px 0 0";
-    body.appendChild(timeLabel);
-
     const cycle = ["blue", "orange", "green", "purple", "gray"];
     const nT = 100;
     const tArr = Array.from({ length: nT }, (_, i) => (2 * Math.PI * i) / (nT - 1));
     const totalLen = xList[0].length;
-    const durationMs = 5000;
-    const t0 = performance.now();
 
     function drawUpTo(revealCount) {
       chart._drawFrame();
@@ -218,7 +210,6 @@ window.figureLib.figure10_5 = function (outputGrid, params) {
         const color = cycle[i % cycle.length];
         chart.line(xList[i].slice(0, revealCount), yList[i].slice(0, revealCount), { color, lineWidth: 1 });
       }
-      timeLabel.textContent = revealCount >= totalLen ? `t = ${revealCount} / ${Tmax}（終了）` : `t = ${revealCount} / ${Tmax}`;
       if (revealCount >= totalLen) {
         chart.scatter(finalX, finalY, { size: 6, color: "red" });
         // Always shown once the animation has actually finished, regardless
@@ -248,45 +239,122 @@ window.figureLib.figure10_5 = function (outputGrid, params) {
       }
     }
 
-    function tick(now) {
-      // Changing a parameter (e.g. the value-field dropdown) triggers a new
-      // Run before this animation reaches its 2.5s end -- runCurrent()
-      // clears outputGrid.innerHTML each time, but nothing was stopping this
-      // rAF loop, so the orphaned old animation kept redrawing an unattached
-      // (invisible) chart in the background for its full remaining
-      // duration, burning CPU that made the new run's own animation
-      // stutter. Bail out as soon as this chart's canvas is no longer in
-      // the document instead of running to completion regardless.
-      if (!chart.canvas.isConnected) return;
-      const frac = Math.min(1, (now - t0) / durationMs);
-      // Reveal rate is keyed to Tmax (the requested horizon, shared by both
-      // panels), not this panel's own totalLen -- so (b) and (c) advance
-      // through the SAME simulated time t together, rather than each
-      // stretching its own (possibly shorter, if the deterministic policy
-      // converged early) trajectory to fill the same 5s wall-clock window.
-      // A panel that converged early simply reaches its cap sooner and
-      // freezes on its final frame while the other keeps animating.
-      const revealCount = Math.min(totalLen, Math.max(1, Math.round(frac * Tmax)));
-      drawUpTo(revealCount);
-      if (frac < 1 && revealCount < totalLen) requestAnimationFrame(tick);
-    }
-    requestAnimationFrame(tick);
+    drawUpTo(1);
+    return { chart, totalLen, drawUpTo };
   }
 
   const value = initValue();
 
   {
     const body = window.plotlib.makeCard(outputGrid, "Figure 10.5(a) — 価値場のヒートマップ");
-    window.plotlib.createHeatmap(body, value, { width: 420, height: 380 });
+    // Matches (b)/(c)'s createChart default canvas size (460x380) so all
+    // three cards line up at the same size instead of (a) being narrower.
+    window.plotlib.createHeatmap(body, value, { width: 460, height: 380 });
   }
 
-  {
-    const body = window.plotlib.makeCard(outputGrid, "Figure 10.5(b) — 確率的方策によるシミュレーション結果");
-    plotSimResult(body, value, tMax, false);
-  }
+  const bodyB = window.plotlib.makeCard(outputGrid, "Figure 10.5(b) — 確率的方策によるシミュレーション結果");
+  const simB = plotSimResult(bodyB, value, tMax, false);
 
+  const bodyC = window.plotlib.makeCard(outputGrid, "Figure 10.5(c) — 決定論的方策によるシミュレーション結果");
+  const simC = plotSimResult(bodyC, value, tMax, true);
+
+  // Shared playback controls: a scrub bar (seek to any t and see a snapshot
+  // of both (b) and (c) at that simulated time) plus a play/pause button
+  // that auto-advances both charts together on the same clock, keyed to
+  // Tmax (the common horizon) rather than either panel's own totalLen -- a
+  // panel whose policy converged early (totalLen < Tmax) just freezes on
+  // its final frame once the bar passes its own totalLen.
   {
-    const body = window.plotlib.makeCard(outputGrid, "Figure 10.5(c) — 決定論的方策によるシミュレーション結果");
-    plotSimResult(body, value, tMax, true);
+    const controlBody = window.plotlib.makeCard(outputGrid, "アニメーション操作");
+    controlBody.parentElement.style.gridColumn = "1 / -1";
+
+    const row = document.createElement("div");
+    row.style.display = "flex";
+    row.style.alignItems = "center";
+    row.style.gap = "14px";
+
+    const playBtn = document.createElement("button");
+    playBtn.className = "run-btn";
+    playBtn.textContent = "▶ 再生";
+    playBtn.style.flex = "none";
+
+    const slider = document.createElement("input");
+    slider.type = "range";
+    slider.min = "0";
+    slider.max = String(tMax);
+    slider.step = "1";
+    slider.value = "0";
+    slider.style.flex = "1";
+
+    const timeLabel = document.createElement("span");
+    timeLabel.className = "hint";
+    timeLabel.style.margin = "0";
+    timeLabel.style.minWidth = "130px";
+    timeLabel.style.flex = "none";
+
+    row.appendChild(playBtn);
+    row.appendChild(slider);
+    row.appendChild(timeLabel);
+    controlBody.appendChild(row);
+
+    function renderAt(t) {
+      simB.drawUpTo(Math.min(simB.totalLen, Math.max(1, t)));
+      simC.drawUpTo(Math.min(simC.totalLen, Math.max(1, t)));
+      timeLabel.textContent = t >= tMax ? `t = ${t} / ${tMax}（終了）` : `t = ${t} / ${tMax}`;
+    }
+
+    const durationMs = 5000;
+    let playing = false;
+    let rafId = null;
+    let playStartTime = 0;
+    let playStartVal = 0;
+
+    function stopPlaying() {
+      playing = false;
+      playBtn.textContent = "▶ 再生";
+      if (rafId != null) cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+
+    function tick(now) {
+      // Same stale-run guard as elsewhere: a parameter change re-renders the
+      // whole output grid (detaching this slider) without anything else
+      // telling this rAF loop to stop.
+      if (!playing || !slider.isConnected) {
+        playing = false;
+        return;
+      }
+      const frac = Math.min(1, (now - playStartTime) / durationMs);
+      const t = Math.round(playStartVal + frac * (tMax - playStartVal));
+      slider.value = String(t);
+      renderAt(t);
+      if (frac >= 1) {
+        stopPlaying();
+        return;
+      }
+      rafId = requestAnimationFrame(tick);
+    }
+
+    playBtn.addEventListener("click", () => {
+      if (playing) {
+        stopPlaying();
+        return;
+      }
+      playStartVal = Number(slider.value) >= tMax ? 0 : Number(slider.value);
+      playStartTime = performance.now();
+      playing = true;
+      playBtn.textContent = "⏸ 一時停止";
+      rafId = requestAnimationFrame(tick);
+    });
+
+    slider.addEventListener("input", () => {
+      stopPlaying();
+      renderAt(Number(slider.value));
+    });
+
+    // Auto-play once from the start, like the animation used to before the
+    // scrub bar existed -- the bar/button just add the ability to pause and
+    // seek afterward instead of only ever watching it play through once.
+    playBtn.click();
   }
 };

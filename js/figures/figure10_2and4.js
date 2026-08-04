@@ -10,32 +10,67 @@
 window.figureLib = window.figureLib || {};
 window.figureLib.figure10_2and4 = function (outputGrid, params) {
   const L = window.linalg;
-  const n = 4;
   const beta = 0.8;
 
-  // Nominal transition matrix P(i,j) = Prob(current=j -> next=i), built
-  // directly from one weight slider per possible edge j->i (16 total, "P:
-  // j→i"). Each from-state's 4 weights are renormalized to sum to 1, so any
-  // combination of sliders gives a valid stochastic matrix -- setting a
-  // weight to 0 removes that edge entirely, so the topology itself (not just
-  // the probabilities) is fully adjustable. If every weight in a column is 0
-  // (all outgoing edges removed), fall back to a uniform row so P never
-  // degenerates into an invalid (all-zero) column.
-  function buildNominalP() {
+  // P is free-text (like Figure 6.1/8.8's A) and any square size -- its own
+  // row count IS the number of states. cost must then match that size,
+  // falling back to a generated 1..n (rather than the fixed 4-dim default)
+  // if it doesn't parse at n's current size.
+  const DEFAULT_P_TEXT = "0.3333,0.3333,0,0\n0,0.3333,0.3333,0\n0,0.3333,0.3333,0.3333\n0.6667,0,0.3333,0.6667";
+  function parseSquareMatrixAny(text) {
+    const rows = String(text)
+      .trim()
+      .split(/[\n;]+/)
+      .map((r) => r.trim())
+      .filter((r) => r.length > 0);
+    const m = rows.length;
+    if (m === 0) return null;
+    const M = rows.map((r) =>
+      r
+        .split(/[,\s]+/)
+        .filter((s) => s.length > 0)
+        .map(Number)
+    );
+    if (M.some((row) => row.length !== m || row.some((v) => !Number.isFinite(v)))) return null;
+    return M;
+  }
+  function parseVecFixed(text, m) {
+    const v = String(text)
+      .trim()
+      .split(/[,\s]+/)
+      .filter((s) => s.length > 0)
+      .map(Number);
+    if (v.length !== m || v.some((x) => !Number.isFinite(x))) return null;
+    return v;
+  }
+  function defaultCost(m) {
+    return Array.from({ length: m }, (_, i) => i + 1);
+  }
+
+  let Praw = parseSquareMatrixAny(params.P_text);
+  if (!Praw) Praw = parseSquareMatrixAny(DEFAULT_P_TEXT);
+  const n = Praw.length;
+
+  let cost = parseVecFixed(params.cost_text, n);
+  if (!cost) cost = defaultCost(n);
+
+  // Nominal transition matrix P(i,j) = Prob(current=j -> next=i), built from
+  // the typed-in raw weight matrix: each from-state j's column of weights is
+  // renormalized to sum to 1, so any typed matrix gives a valid stochastic
+  // matrix -- a 0 entry removes that edge entirely, so the topology itself
+  // (not just the probabilities) is fully adjustable. If every weight in a
+  // column is 0 (all outgoing edges removed), fall back to a uniform column
+  // so P never degenerates into an invalid (all-zero) column.
+  function buildNominalP(raw) {
     const P = L.zeros(n, n);
-    for (let j = 1; j <= n; j++) {
-      const w = [params[`p${j}to1`], params[`p${j}to2`], params[`p${j}to3`], params[`p${j}to4`]];
-      let total = w.reduce((s, v) => s + v, 0);
-      if (total <= 1e-9) {
-        w.fill(1 / n);
-        total = 1;
-      }
-      for (let i = 0; i < n; i++) P[i][j - 1] = w[i] / total;
+    for (let j = 0; j < n; j++) {
+      let total = 0;
+      for (let i = 0; i < n; i++) total += raw[i][j];
+      for (let i = 0; i < n; i++) P[i][j] = total <= 1e-9 ? 1 / n : raw[i][j] / total;
     }
     return P;
   }
-  const P = buildNominalP();
-  const cost = [params.cost1, params.cost2, params.cost3, params.cost4];
+  const P = buildNominalP(Praw);
 
   // w[a] = sum_b P[b][a] * z[b] = (P^T @ z)[a], shared by both gradients below.
   function wOf(z) {
@@ -166,10 +201,10 @@ window.figureLib.figure10_2and4 = function (outputGrid, params) {
   // ---- Figure 10.2(b): sample path of the autonomous chain under P ----
   const kBar2 = Math.max(10, Math.round(params.k_bar_2));
   {
-    const states = simulateChain(P, kBar2, 4);
+    const states = simulateChain(P, kBar2, n);
     const { xs, ys } = stairsXY(states);
     const body = window.plotlib.makeCard(outputGrid, "Figure 10.2(b) — ノミナル遷移行列によるサンプル軌道");
-    const chart = window.plotlib.createChart(body, { xlim: [0, kBar2], ylim: [0.8, 4.2], xlabel: "$k$" });
+    const chart = window.plotlib.createChart(body, { xlim: [0, kBar2], ylim: [0.8, n + 0.2], xlabel: "$k$" });
     chart.line(xs, ys, { color: "blue", lineWidth: 2 });
     chart.finish();
   }
@@ -178,7 +213,7 @@ window.figureLib.figure10_2and4 = function (outputGrid, params) {
   // Step 1: solve L_KL(v) = 0 once for the optimal value function, then get
   // the KL-optimal transition matrix P_opt in closed form (same simplification
   // as the Python's P_opt[i,j] = P[i,j]*z_opt[i]/w(j), just precomputed).
-  const vStar = adamMinimize(gradLKL, [5, 5, 5, 5], 5000, 0.05, null);
+  const vStar = adamMinimize(gradLKL, new Array(n).fill(5), 5000, 0.05, null);
   const zOpt = vStar.map((vi) => Math.exp(-beta * vi));
   const wOpt = wOf(zOpt);
   const Popt = L.zeros(n, n);
@@ -217,13 +252,15 @@ window.figureLib.figure10_2and4 = function (outputGrid, params) {
   const kBar4 = Math.max(50, Math.round(params.k_bar_4));
   const Paccum4 = cumsumCols(Popt);
   const states4 = new Array(kBar4 + 1).fill(0);
-  states4[0] = 4;
-  const cntA = [0, 0, 0, 1]; // visits into each next-state
-  const cntB = [0, 0, 0, 0]; // visits out of each current-state
+  states4[0] = n;
+  const cntA = new Array(n).fill(0);
+  cntA[n - 1] = 1; // visits into each next-state (the initial state counts as one visit)
+  const cntB = new Array(n).fill(0); // visits out of each current-state
   const invLHist = Array.from({ length: n }, () => new Array(kBar4));
-  const irlMask = [false, true, true, true]; // v[0] pinned to offset = 0
+  const irlMask = Array.from({ length: n }, (_, i) => i !== 0); // v[0] pinned to offset = 0
+  const irlV0 = Array.from({ length: n }, (_, i) => (i === 0 ? 0 : 5));
   for (let k = 0; k < kBar4; k++) {
-    const v = adamMinimize((vv) => gradLIRL(vv, cntA, cntB), [0, 4, 10, 10], 400, 0.1, irlMask);
+    const v = adamMinimize((vv) => gradLIRL(vv, cntA, cntB), irlV0, 400, 0.1, irlMask);
     const invZ = v.map((vi) => Math.exp(-beta * vi));
     const w = wOf(invZ);
     for (let a = 0; a < n; a++) invLHist[a][k] = v[a] + Math.log(w[a]);
@@ -250,7 +287,7 @@ window.figureLib.figure10_2and4 = function (outputGrid, params) {
     const states4head = states4.slice(0, kShow + 1);
     const { xs, ys } = stairsXY(states4head);
     const body = window.plotlib.makeCard(outputGrid, "Figure 10.4(a) — KL制御最適方策によるサンプル軌道");
-    const chart = window.plotlib.createChart(body, { xlim: [0, kShow], ylim: [0.8, 4.2], xlabel: "$k$" });
+    const chart = window.plotlib.createChart(body, { xlim: [0, kShow], ylim: [0.8, n + 0.2], xlabel: "$k$" });
     chart.line(xs, ys, { color: "blue", lineWidth: 2 });
     chart.finish();
   }
@@ -270,7 +307,7 @@ window.figureLib.figure10_2and4 = function (outputGrid, params) {
     const palette = ["blue", "orange", "green", "red"];
     const body = window.plotlib.makeCard(outputGrid, "Figure 10.4(b) — IRLによる状態コストの推定値の推移");
     const chart = window.plotlib.createChart(body, { xlim: [0, kBar4], ylim: [tMin - 1, tMax + 2.5], xlabel: "$k$" });
-    for (let a = 0; a < n; a++) chart.line(ks, normHist[a], { color: palette[a], lineWidth: 1.5, label: `\\ell_${a + 1}` });
+    for (let a = 0; a < n; a++) chart.line(ks, normHist[a], { color: palette[a % palette.length], lineWidth: 1.5, label: `\\ell_${a + 1}` });
     chart.finish();
   }
 };

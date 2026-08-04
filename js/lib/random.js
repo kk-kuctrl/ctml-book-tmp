@@ -46,4 +46,8 @@ function truncNormSample(lo, hi) {
   return Math.max(lo, Math.min(hi, 0)); // fallback, practically unreachable
 }
 
-window.rnd = { randn, randnVec, randVec, mvnSample, laplaceSample, truncNormSample };
+function uniformSample(lo, hi) {
+  return lo + (hi - lo) * Math.random();
+}
+
+window.rnd = { randn, randnVec, randVec, mvnSample, laplaceSample, truncNormSample, uniformSample };

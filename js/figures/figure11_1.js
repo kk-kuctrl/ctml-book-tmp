@@ -36,14 +36,44 @@ window.figureLib.figure11_1 = function (outputGrid, params) {
     [0.1, 0],
     [0, 0.1],
   ];
-  const Sigma0 = [
-    [params.sigma0, 0],
-    [0, params.sigma0],
-  ];
-  const Sigma10 = [
-    [params.sigma10_1, 0],
-    [0, params.sigma10_2],
-  ];
+  // Sigma0/Sigma10/mu0/mu10 are free-text (like Figure 6.1/8.8's A) instead
+  // of individual sliders -- a full 2x2 covariance (not just an isotropic
+  // sigma0*I or a diagonal Sigma10) and an arbitrary 2-vector mean can be
+  // typed in directly. Malformed input falls back to the textbook's
+  // original defaults.
+  function parseMatrix2x2(text) {
+    const rows = String(text)
+      .trim()
+      .split(/[\n;]+/)
+      .map((r) => r.trim())
+      .filter((r) => r.length > 0);
+    if (rows.length !== 2) return null;
+    const M = rows.map((r) =>
+      r
+        .split(/[,\s]+/)
+        .filter((s) => s.length > 0)
+        .map(Number)
+    );
+    if (M.some((row) => row.length !== 2 || row.some((v) => !Number.isFinite(v)))) return null;
+    return M;
+  }
+  function parseVec2(text) {
+    const v = String(text)
+      .trim()
+      .split(/[,\s]+/)
+      .filter((s) => s.length > 0)
+      .map(Number);
+    if (v.length !== 2 || v.some((x) => !Number.isFinite(x))) return null;
+    return v;
+  }
+  let Sigma0 = parseMatrix2x2(params.sigma0_text);
+  if (!Sigma0) Sigma0 = parseMatrix2x2("3,0\n0,3");
+  let Sigma10 = parseMatrix2x2(params.sigma10_text);
+  if (!Sigma10) Sigma10 = parseMatrix2x2("2,0\n0,0.5");
+  let mu0 = parseVec2(params.mu0_text);
+  if (!mu0) mu0 = [0, 0];
+  let mu10 = parseVec2(params.mu10_text);
+  if (!mu10) mu10 = [0, 0];
   const kBar = 10;
   const kMid = Math.min(kBar - 1, Math.max(1, Math.round(params.k_mid)));
   const midCap = params.mid_cap;
@@ -312,8 +342,8 @@ window.figureLib.figure11_1 = function (outputGrid, params) {
     const midIdx = idxSigma(kMid)[2];
     // A generic interior starting point: isotropic covariances around the
     // average of Sigma_0/Sigma_10's scale, comfortably PD regardless of what
-    // the sliders are set to, plus a strictly-feasible constant M_k.
-    const initDiag = Math.max(0.5, (params.sigma0 + params.sigma10_1 + params.sigma10_2) / 3);
+    // was typed in, plus a strictly-feasible constant M_k.
+    const initDiag = Math.max(0.5, (Sigma0[0][0] + Sigma0[1][1] + Sigma10[0][0] + Sigma10[1][1]) / 4);
     let x = new Array(NX).fill(0);
     for (let k = 1; k < kBar; k++) {
       const [i11, i12, i22] = idxSigma(k);
@@ -382,9 +412,52 @@ window.figureLib.figure11_1 = function (outputGrid, params) {
   // to the next cycle color automatically); wraps if kBar+1 > 10.
   const TAB10 = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"];
 
+  // Per Computer Exercise 11.1 (substituting Upsilon_k=diag(O,I) into eq.
+  // 11.7): E[||u_k||^2] = Trace(M_k) + ||ubar_k||^2. The covariance-steering
+  // SDP above already handles the Trace(M_k) part (assuming mean 0
+  // throughout); ubar_k (the mean of u_k) is a COMPLETELY SEPARATE free
+  // decision variable with no shared constraint against Sigma_k/M_k/K_k --
+  // so xbar_k's steering from mu0 to mu10 is just a plain deterministic
+  // minimum-energy control problem on xbar_{k+1}=A*xbar_k+Bvec*ubar_k, solved
+  // via the same minimum-norm (pseudo-inverse) construction as the
+  // covariance side, but for reachability rather than a barrier method.
+  function computeMeanTrajectory(mu0In, mu10In) {
+    const powA = [L.eye(2)];
+    for (let k = 1; k <= kBar; k++) powA.push(L.matMul(powA[k - 1], A));
+    // cols[k] = A^(kBar-1-k) @ Bvec: ubar_k's contribution to xbar_kBar.
+    const cols = Array.from({ length: kBar }, (_, k) => L.matVec(powA[kBar - 1 - k], Bvec));
+    const freeResp = L.matVec(powA[kBar], mu0In);
+    const target = [mu10In[0] - freeResp[0], mu10In[1] - freeResp[1]];
+
+    const MMt = L.zeros(2, 2);
+    for (let r = 0; r < 2; r++)
+      for (let c = 0; c < 2; c++) {
+        let s = 0;
+        for (let k = 0; k < kBar; k++) s += cols[k][r] * cols[k][c];
+        MMt[r][c] = s;
+      }
+    const beta = L.matVec(L.inv(MMt), target);
+    const ubar = cols.map((col) => col[0] * beta[0] + col[1] * beta[1]);
+
+    let xbar = mu0In.slice();
+    const meanTraj = [xbar.slice()];
+    for (let k = 0; k < kBar; k++) {
+      xbar = [A[0][0] * xbar[0] + A[0][1] * xbar[1] + Bvec[0] * ubar[k], A[1][0] * xbar[0] + A[1][1] * xbar[1] + Bvec[1] * ubar[k]];
+      meanTraj.push(xbar.slice());
+    }
+    const meanCost = ubar.reduce((s, u) => s + u * u, 0); // sum ||ubar_k||^2 == sum gamma_k at optimum
+    return { meanTraj, ubar, meanCost };
+  }
+  // Independent of caseB (the mid-horizon constraint only touches
+  // Sigma_k), so compute it once and reuse for both panels.
+  const { meanTraj, meanCost } = computeMeanTrajectory(mu0, mu10);
+
   function renderCase(title, caseB) {
     const { SigmaOpt, Popt, Mopt } = solveCovarianceSteering(caseB);
-    const optimalCost = Mopt.reduce((s, v) => s + v, 0);
+    // Total E[sum ||u_k||^2] = sum Trace(M_k) + sum ||ubar_k||^2 (Computer
+    // Exercise 11.1's decomposition) -- the covariance-steering part plus
+    // the mean-steering part, computed independently above.
+    const optimalCost = Mopt.reduce((s, v) => s + v, 0) + meanCost;
     const Kgain = [];
     for (let k = 0; k < kBar; k++) {
       const SigInv = L.inv(SigmaOpt[k]);
@@ -413,16 +486,19 @@ window.figureLib.figure11_1 = function (outputGrid, params) {
     const kVals = Array.from({ length: kBar + 1 }, (_, i) => i);
 
     for (let s = 0; s < nSample; s++) {
+      // x is the zero-mean FLUCTUATION around meanTraj -- covariance
+      // steering (Kgain) only ever acts on this part; the mean itself is
+      // added in separately (meanTraj already bakes in its own feedforward).
       let x = window.rnd.mvnSample([0, 0], Sigma0);
-      const y1 = [x[0]];
-      const y2 = [x[1]];
+      const y1 = [meanTraj[0][0] + x[0]];
+      const y2 = [meanTraj[0][1] + x[1]];
       for (let k = 0; k < kBar; k++) {
         const Kk = Kgain[k];
         const uk = Kk[0] * x[0] + Kk[1] * x[1];
         const v = window.rnd.mvnSample([0, 0], N);
         x = [A[0][0] * x[0] + A[0][1] * x[1] + Bvec[0] * uk + v[0], A[1][0] * x[0] + A[1][1] * x[1] + Bvec[1] * uk + v[1]];
-        y1.push(x[0]);
-        y2.push(x[1]);
+        y1.push(meanTraj[k + 1][0] + x[0]);
+        y2.push(meanTraj[k + 1][1] + x[1]);
       }
       chart3d.addLine(kVals, y1, y2, [0.6, 0.6, 0.6]);
     }
@@ -433,14 +509,16 @@ window.figureLib.figure11_1 = function (outputGrid, params) {
       // being steered between -- bold those two so they stand out from the
       // intermediate-time ellipses.
       const isEndpoint = k === 0 || k === kBar;
-      chart3d.addLine(kConst, xs, ys, TAB10[k % TAB10.length], { lineWidth: isEndpoint ? 3 : 1.2 });
+      const xsShift = xs.map((v) => v + meanTraj[k][0]);
+      const ysShift = ys.map((v) => v + meanTraj[k][1]);
+      chart3d.addLine(kConst, xsShift, ysShift, TAB10[k % TAB10.length], { lineWidth: isEndpoint ? 3 : 1.2 });
     }
     chart3d.finish();
 
     const costLine = document.createElement("p");
     costLine.className = "hint";
     costLine.style.margin = "8px 0 0";
-    costLine.textContent = `最適コスト（Σ M_k、制御入力の分散の総和）: ${optimalCost.toFixed(4)}`;
+    costLine.textContent = `最適コスト（Σ Trace(M_k) + Σ‖ū_k‖²、制御入力の平均2乗の総和）: ${optimalCost.toFixed(4)}`;
     body.appendChild(costLine);
   }
 

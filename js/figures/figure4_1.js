@@ -19,7 +19,7 @@ window.figureLib.figure4_1 = function (outputGrid, params) {
       x[k + 1] = sysA * x[k] + u;
     }
 
-    const body = window.plotlib.makeCard(outputGrid, "Figure 4.1(a) — Deterministic reference trajectory");
+    const body = window.plotlib.makeCard(outputGrid, "Figure 4.1(a) — 確定システム");
     const chart = window.plotlib.createChart(body, {
       xlim: [0, kBar],
       ylim: [-xMax, xMax],
@@ -48,7 +48,7 @@ window.figureLib.figure4_1 = function (outputGrid, params) {
       }
     }
 
-    const body = window.plotlib.makeCard(outputGrid, "Figure 4.1(b) — Trajectories under noise");
+    const body = window.plotlib.makeCard(outputGrid, "Figure 4.1(b) — 確率システム");
     const chart = window.plotlib.createChart(body, {
       xlim: [0, kBar],
       ylim: [-xMax, xMax],

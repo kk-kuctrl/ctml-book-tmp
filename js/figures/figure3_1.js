@@ -5,6 +5,8 @@ window.figureLib.figure3_1 = function (outputGrid, params) {
   const kBarA = Math.max(1, Math.round(params.k_bar_a));
   const kBarB = Math.max(2, Math.round(params.k_bar_b));
   const nSampleB = Math.max(1, Math.round(params.n_sample_b));
+  const x0Min = params.x0_min;
+  const x0Max = params.x0_max;
 
   // ---- Figure 3.1(a): distribution propagation via a discretized transition matrix ----
   {
@@ -37,8 +39,8 @@ window.figureLib.figure3_1 = function (outputGrid, params) {
       for (let j = idxL; j <= idxU; j++) P[j][i] += w;
     }
 
-    // Initial distribution: uniform on [-0.5, 0.5], normalized so sum*dx = 1.
-    let init = x.map((xi) => (xi >= -0.5 && xi <= 0.5 ? 1.0 : 0.0));
+    // Initial distribution: uniform on [x0Min, x0Max], normalized so sum*dx = 1.
+    let init = x.map((xi) => (xi >= x0Min && xi <= x0Max ? 1.0 : 0.0));
     const initSum = init.reduce((s, v) => s + v, 0) * dx;
     init = init.map((v) => v / initSum);
 
@@ -85,7 +87,7 @@ window.figureLib.figure3_1 = function (outputGrid, params) {
     const ks = Array.from({ length: kBarB }, (_, k) => k);
     for (let s = 0; s < nSampleB; s++) {
       const xArr = new Array(kBarB).fill(0);
-      xArr[0] = Math.random() - 0.5;
+      xArr[0] = window.rnd.uniformSample(x0Min, x0Max);
       for (let k = 0; k < kBarB - 1; k++) {
         const noise = Math.random() - 0.5;
         xArr[k + 1] = xArr[k] + 0.1 * (xArr[k] - xArr[k] ** 3) + noise * (1 - Math.abs(xArr[k]));

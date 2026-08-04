@@ -641,7 +641,13 @@ function createHeatmap(container, grid, opts) {
     if (v > vmax) vmax = v;
   }
 
-  const plotSize = o.width - MARGIN.left - MARGIN.right;
+  // Use the SAME plot-box formula as Chart2D (plotW/plotH, not a single
+  // square plotSize) so that when a heatmap card sits next to Chart2D cards
+  // of the same width/height, the actual plotted rectangles line up exactly
+  // (same top/bottom edges) instead of the heatmap's square silently
+  // occupying more vertical space than Chart2D's plot area does.
+  const plotW = o.width - MARGIN.left - MARGIN.right;
+  const plotH = o.height - MARGIN.top - MARGIN.bottom;
   // grid[i][j] is (x=i, y=j) -- so the offscreen buffer's WIDTH spans i
   // (rows.length) and its HEIGHT spans j (cols.length), with pixel
   // (col=i, row=j). Getting i/j swapped here previously put j on the x-axis
@@ -677,38 +683,38 @@ function createHeatmap(container, grid, opts) {
   // Flip vertically so j (y) increases upward like matplotlib, matching the
   // i=x, j=y orientation the offscreen buffer was built with above.
   ctx.save();
-  ctx.translate(MARGIN.left, MARGIN.top + plotSize);
+  ctx.translate(MARGIN.left, MARGIN.top + plotH);
   ctx.scale(1, -1);
-  ctx.drawImage(off, 0, 0, rows, cols, 0, 0, plotSize, plotSize);
+  ctx.drawImage(off, 0, 0, rows, cols, 0, 0, plotW, plotH);
   ctx.restore();
   ctx.strokeStyle = "#c7cbd1";
-  ctx.strokeRect(MARGIN.left, MARGIN.top, plotSize, plotSize);
+  ctx.strokeRect(MARGIN.left, MARGIN.top, plotW, plotH);
 
   // Colorbar
   const cbW = 14;
-  const cbX = MARGIN.left + plotSize + 14;
-  const cbGrad = ctx.createLinearGradient(0, MARGIN.top, 0, MARGIN.top + plotSize);
+  const cbX = MARGIN.left + plotW + 14;
+  const cbGrad = ctx.createLinearGradient(0, MARGIN.top, 0, MARGIN.top + plotH);
   for (let s = 0; s <= 1; s += 0.05) {
     const [r, g, b] = turbo(1 - s);
     cbGrad.addColorStop(s, `rgb(${r},${g},${b})`);
   }
   ctx.fillStyle = cbGrad;
-  ctx.fillRect(cbX, MARGIN.top, cbW, plotSize);
-  ctx.strokeRect(cbX, MARGIN.top, cbW, plotSize);
+  ctx.fillRect(cbX, MARGIN.top, cbW, plotH);
+  ctx.strokeRect(cbX, MARGIN.top, cbW, plotH);
   ctx.fillStyle = "#6b7280";
   ctx.font = "11px -apple-system, sans-serif";
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
   for (let s = 0; s <= 1.001; s += 0.25) {
     const val = vmin + s * (vmax - vmin);
-    const py = MARGIN.top + plotSize - s * plotSize;
+    const py = MARGIN.top + plotH - s * plotH;
     ctx.fillText(fmtNum(val), cbX + cbW + 4, py);
   }
 
   wrap.appendChild(canvas);
   container.appendChild(wrap);
   makeResponsive(container, wrap);
-  return { canvas, ctx, plotSize, margin: MARGIN };
+  return { canvas, ctx, plotW, plotH, margin: MARGIN };
 }
 
 function makeCard(outputGrid, subtitle) {

@@ -30,6 +30,17 @@ const FIGURES = [
       { key: "k_bar_a", label: "3.1(a) ステップ数", default: 9, min: 1, max: 30, step: 1 },
       { key: "k_bar_b", label: "3.1(b) ステップ数", default: 30, min: 5, max: 100, step: 1 },
       { key: "n_sample_b", label: "3.1(b) サンプル数", default: 10, min: 1, max: 30, step: 1 },
+      {
+        type: "range2",
+        keyLow: "x0_min",
+        keyHigh: "x0_max",
+        label: "初期値の範囲（一様分布、(a)(b)共通）",
+        default: [-0.5, 0.5],
+        min: -1,
+        max: 1,
+        step: 0.05,
+        newRow: true,
+      },
     ],
   },
   {
@@ -40,6 +51,17 @@ const FIGURES = [
     params: [
       { key: "k_bar", label: "ステップ数", default: 50, min: 5, max: 200, step: 1 },
       { key: "n_sample", label: "サンプル数", default: 10, min: 1, max: 30, step: 1 },
+      {
+        type: "range2",
+        keyLow: "x0_min_b",
+        keyHigh: "x0_max_b",
+        label: "(b) 初期値の範囲（一様分布）",
+        default: [-0.5, 0.5],
+        min: -2,
+        max: 2,
+        step: 0.05,
+        newRow: true,
+      },
     ],
   },
   {
@@ -47,6 +69,8 @@ const FIGURES = [
     chapter: 3,
     title: "Figure 3.3",
     note: "線形フィードバックのサンプル軌道と収束性",
+    method:
+      "ゲイン a は線形遷移 x_{k+1}=a*x_k+雑音 の係数（フィードバック強度）です。|a|<1 なら軌道は原点付近に収束・分布が定常化し、|a|≥1 なら発散します。",
     params: [
       { key: "k_bar", label: "ステップ数", default: 10, min: 5, max: 200, step: 1 },
       { key: "n_sample", label: "サンプル数", default: 20, min: 1, max: 50, step: 1 },
@@ -70,7 +94,7 @@ const FIGURES = [
     key: "figure4_1",
     chapter: 4,
     title: "Figure 4.1",
-    note: "フィードバック制御則のもとでの状態推移",
+    note: "フィードフォワード制御のもとでの不安定システムの状態推移",
     params: [
       { key: "k_bar", label: "ステップ数", default: 50, min: 5, max: 200, step: 1 },
       { key: "n_sample", label: "4.1(b) サンプル数", default: 20, min: 1, max: 50, step: 1 },
@@ -85,7 +109,7 @@ const FIGURES = [
       "行列指数関数 exp(At) はスケーリング＆スクエアリング法（行列を2の冪で縮小してから冪級数展開し、2乗を繰り返して元のスケールに戻す）で計算しています（scipyのexpmの代わり）。",
     params: [
       { key: "t_end", label: "終了時刻（秒）", default: 8, min: 0.1, max: 10, step: 0.1 },
-      { key: "t_c", label: "サンプル時間 T_c", default: 0.01, min: 0.00001, max: 0.5, step: 0.00001 },
+      { key: "t_c", label: "サンプル時間 T_c", default: 0.01, min: 0.0001, max: 0.5, log: true },
       { key: "d", label: "量子化幅 d", default: 1.0, min: 0.2, max: 3, step: 0.1 },
     ],
   },
@@ -107,7 +131,51 @@ const FIGURES = [
     note: "外れ値に頑健な状態推定",
     method:
       "L1正則化された最小二乗を、射影付きAdamとε-アニーリング（平滑化パラメータεを1e-1から1e-10まで徐々に小さくする継続法／graduated non-convexity）で解いています（cvxpyの代わり）。固定εのままだと真のL1解のようなスパースな残差構造が再現できませんでした。",
-    params: [{ key: "k_bar", label: "ステップ数", default: 60, min: 20, max: 150, step: 5 }],
+    params: [
+      { key: "k_bar", label: "ステップ数", default: 60, min: 20, max: 150, step: 5 },
+      {
+        key: "init_dist",
+        type: "select",
+        label: "初期状態 x_0 の分布",
+        default: "gaussian",
+        newRow: true,
+        options: [
+          { value: "gaussian", label: "正規分布" },
+          { value: "laplace", label: "ラプラス分布" },
+          { value: "uniform", label: "一様分布" },
+        ],
+      },
+      { key: "init_mean", label: "初期状態 x_0 の平均（各成分共通）", default: 1, min: -3, max: 3, step: 0.1 },
+      { key: "init_scale", label: "初期状態 x_0 のばらつき（一様:台の半幅／それ以外:分散）", default: 1, min: 0.05, max: 5, step: 0.05 },
+      {
+        key: "proc_dist",
+        type: "select",
+        label: "外乱 v の分布",
+        default: "gaussian",
+        newRow: true,
+        options: [
+          { value: "gaussian", label: "正規分布" },
+          { value: "laplace", label: "ラプラス分布" },
+          { value: "uniform", label: "一様分布" },
+        ],
+      },
+      { key: "proc_scale", label: "外乱 v の分散（一様のときは無視）", default: 1, min: 0.05, max: 5, step: 0.05 },
+      { key: "proc_support", label: "外乱 v の台（±、分布によらず指定・一様のときはそのまま範囲）", default: 1, min: 0.1, max: 5, step: 0.1 },
+      { key: "proc_unbounded", type: "checkbox", label: "外乱 v を非有界に（台を無視、一様のときは無効）", default: false },
+      {
+        key: "noise_dist",
+        type: "select",
+        label: "観測雑音 w の分布",
+        default: "laplace",
+        newRow: true,
+        options: [
+          { value: "gaussian", label: "正規分布" },
+          { value: "laplace", label: "ラプラス分布" },
+          { value: "uniform", label: "一様分布" },
+        ],
+      },
+      { key: "noise_scale", label: "観測雑音 w のばらつき（一様:台の半幅／それ以外:分散）", default: 2, min: 0.05, max: 10, step: 0.05 },
+    ],
   },
   {
     key: "figure6_1",
@@ -168,7 +236,7 @@ const FIGURES = [
     key: "figure8_8",
     chapter: 8,
     title: "Figure 8.8",
-    note: "5次元系のサンプル軌道（離散リアプノフ方程式で初期分布を設定）",
+    note: "マルコフモデルのサンプル軌道（離散リアプノフ方程式で初期分布を設定）",
     method:
       "初期分布の共分散は離散リアプノフ方程式（Kronecker積によるベクトル化）で、系の安定化係数はべき乗法によるスペクトル半径推定で計算しています（scipy/numpy.linalg.eigの代わり）。",
     params: [
@@ -209,32 +277,26 @@ const FIGURES = [
     key: "figure10_2and4",
     chapter: 10,
     title: "Figure 10.2(b) & 10.4",
-    note: "KL制御による最適方策とオンライン逆強化学習での状態コスト推定。P: j→i は状態jから状態iへの遷移重みで、同じjのグループ内で自動的に合計1へ正規化されます（0にすればその遷移を削除でき、トポロジーも自由に変更可）。",
+    note: "KL制御による最適方策とオンライン逆強化学習での状態コスト推定。P(i,j) は状態jから状態iへの遷移重みで、同じ列（同じ遷移元j）内で自動的に合計1へ正規化されます（0にすればその遷移を削除でき、トポロジーも自由に変更可）。状態数はPの行数（正方行列である必要あり）で自由に決まり、コストベクトルはその次元に合わせて下さい。",
     method:
       "L_KL・L_IRLはどちらも凸関数（アフィン項＋log-sum-exp項）なので、scipy.optimize.minimizeの代わりに解析的勾配を手計算してAdamで最小化しています。",
     params: [
       { key: "k_bar_2", label: "10.2(b) ステップ数", default: 50, min: 10, max: 300, step: 5 },
       { key: "k_bar_4", label: "10.4 ステップ数", default: 1000, min: 100, max: 3000, step: 100 },
-      { key: "p1to1", label: "P: 1→1", default: 1 / 3, min: 0, max: 1, step: 0.01, newRow: true },
-      { key: "p1to2", label: "P: 1→2", default: 0, min: 0, max: 1, step: 0.01 },
-      { key: "p1to3", label: "P: 1→3", default: 0, min: 0, max: 1, step: 0.01 },
-      { key: "p1to4", label: "P: 1→4", default: 2 / 3, min: 0, max: 1, step: 0.01 },
-      { key: "p2to1", label: "P: 2→1", default: 1 / 3, min: 0, max: 1, step: 0.01, newRow: true },
-      { key: "p2to2", label: "P: 2→2", default: 1 / 3, min: 0, max: 1, step: 0.01 },
-      { key: "p2to3", label: "P: 2→3", default: 1 / 3, min: 0, max: 1, step: 0.01 },
-      { key: "p2to4", label: "P: 2→4", default: 0, min: 0, max: 1, step: 0.01 },
-      { key: "p3to1", label: "P: 3→1", default: 0, min: 0, max: 1, step: 0.01, newRow: true },
-      { key: "p3to2", label: "P: 3→2", default: 1 / 3, min: 0, max: 1, step: 0.01 },
-      { key: "p3to3", label: "P: 3→3", default: 1 / 3, min: 0, max: 1, step: 0.01 },
-      { key: "p3to4", label: "P: 3→4", default: 1 / 3, min: 0, max: 1, step: 0.01 },
-      { key: "p4to1", label: "P: 4→1", default: 0, min: 0, max: 1, step: 0.01, newRow: true },
-      { key: "p4to2", label: "P: 4→2", default: 0, min: 0, max: 1, step: 0.01 },
-      { key: "p4to3", label: "P: 4→3", default: 1 / 3, min: 0, max: 1, step: 0.01 },
-      { key: "p4to4", label: "P: 4→4", default: 2 / 3, min: 0, max: 1, step: 0.01 },
-      { key: "cost1", label: "コストベクトル ℓ₁", default: 1, min: 0, max: 10, step: 0.1, newRow: true },
-      { key: "cost2", label: "コストベクトル ℓ₂", default: 2, min: 0, max: 10, step: 0.1 },
-      { key: "cost3", label: "コストベクトル ℓ₃", default: 3, min: 0, max: 10, step: 0.1 },
-      { key: "cost4", label: "コストベクトル ℓ₄", default: 4, min: 0, max: 10, step: 0.1 },
+      {
+        key: "P_text",
+        type: "matrix",
+        rows: 4,
+        label: "遷移重み行列 P（NxN、次元は自由・行=遷移先i／列=遷移元j、各列は自動正規化）",
+        default: "0.3333,0.3333,0,0\n0,0.3333,0.3333,0\n0,0.3333,0.3333,0.3333\n0.6667,0,0.3333,0.6667",
+        newRow: true,
+      },
+      {
+        key: "cost_text",
+        type: "text",
+        label: "コストベクトル ℓ（Pの次元に合わせる、カンマ区切り）",
+        default: "1,2,3,4",
+      },
     ],
   },
   {
@@ -246,6 +308,8 @@ const FIGURES = [
       { key: "id_n", label: "エージェント数", default: 12, min: 2, max: 20, step: 1 },
       { key: "sensor_range", label: "センサー範囲", default: 8, min: 2, max: 15, step: 1 },
       { key: "t_max", label: "シミュレーション長", default: 30000, min: 500, max: 50000, step: 500 },
+      { key: "init_x", label: "初期位置 x（全エージェント共通）", default: 10, min: 0, max: 100, step: 1, newRow: true },
+      { key: "init_y", label: "初期位置 y（全エージェント共通）", default: 10, min: 0, max: 100, step: 1 },
       {
         key: "value_field",
         type: "select",
@@ -270,11 +334,25 @@ const FIGURES = [
       "半正定値計画問題（SDP）を内点法（infeasible-start Newton法＋対数バリア）で解いています。等式制約（共分散の遷移関係）はKKT連立方程式で厳密に扱い、半正定値制約は-log detバリアで滑らかな目的関数に変換し、バリア係数μを5から3e-7まで25段階で減衰させながらNewton法を反復します（cvxpy/SCSの代わり）。",
     params: [
       { key: "n_sample", label: "サンプル軌道数", default: 20, min: 1, max: 50, step: 1 },
-      { key: "sigma0", label: "初期分散 Σ_0 = σ₀ I", default: 3, min: 0.5, max: 10, step: 0.1, newRow: true },
-      { key: "sigma10_1", label: "終端分散 Σ_10 の (1,1)", default: 2, min: 0.1, max: 10, step: 0.1 },
-      { key: "sigma10_2", label: "終端分散 Σ_10 の (2,2)", default: 0.5, min: 0.1, max: 10, step: 0.1 },
       { key: "k_mid", label: "制約を課す時刻 k", default: 5, min: 1, max: 9, step: 1, newRow: true },
       { key: "mid_cap", label: "制約幅（Σ_k(2,2) の上限）", default: 0.5, min: 0.05, max: 5, step: 0.05 },
+      {
+        key: "sigma0_text",
+        type: "matrix",
+        rows: 2,
+        label: "初期分散 Σ_0（2x2、対称正定値行列）",
+        default: "3,0\n0,3",
+        newRow: true,
+      },
+      {
+        key: "sigma10_text",
+        type: "matrix",
+        rows: 2,
+        label: "終端分散 Σ_10（2x2、対称正定値行列）",
+        default: "2,0\n0,0.5",
+      },
+      { key: "mu0_text", type: "text", label: "初期分布の平均 mu_0（カンマ区切り）", default: "0,0" },
+      { key: "mu10_text", type: "text", label: "終端分布の平均 mu_10（カンマ区切り）", default: "0,0" },
     ],
   },
   {
@@ -292,13 +370,38 @@ const FIGURES = [
       { key: "alpha3", label: "設定3: α", default: 1.0, min: 0.1, max: 2, step: 0.05 },
       { key: "c4", label: "設定4: C", default: 1.0, min: 0.1, max: 2, step: 0.05 },
       { key: "alpha4", label: "設定4: α", default: 1.5, min: 0.1, max: 2, step: 0.05 },
+      {
+        key: "noise_dist",
+        type: "select",
+        label: "確率変数 z の分布",
+        default: "gaussian",
+        newRow: true,
+        options: [
+          { value: "gaussian", label: "正規分布" },
+          { value: "laplace", label: "ラプラス分布（裾がやや重い）" },
+        ],
+      },
+      { key: "noise_mean", label: "z の平均", default: 0, min: -3, max: 3, step: 0.1 },
+      { key: "noise_var", label: "z の分散", default: 1, min: 0.05, max: 5, step: 0.05 },
+      {
+        key: "est_target",
+        type: "select",
+        label: "推定対象（y_kの定義）",
+        default: "mean",
+        newRow: true,
+        options: [
+          { value: "mean", label: "平均（y=p-z）" },
+          { value: "quantile", label: "分位点（y=𝟙[z≤p]-c）" },
+        ],
+      },
+      { key: "quantile_c", label: "分位点 c（P(z≤p*)=c・裾の端まで指定可）", default: 0.5, min: 0.001, max: 0.999, step: 0.001 },
     ],
   },
   {
     key: "figure11_5",
     chapter: 11,
     title: "Figure 11.5",
-    note: "非凸関数の勾配とSGDによる零点探索（手計算の微分でsympy不要）",
+    note: "ミニバッチSGDによる零点探索（手計算の微分でsympy不要）",
     params: [{ key: "n_k", label: "反復回数", default: 2000, min: 100, max: 10000, step: 100 }],
   },
   {
@@ -424,10 +527,90 @@ function renderParamsPanel(entry) {
       else input.rows = p.rows || 3;
       input.className = "params-text-input";
       input.value = currentParamValues[p.key];
-      input.addEventListener("input", () => {
+      // Unlike sliders (where auto-run-while-dragging is the point), typing
+      // a matrix/vector is many keystrokes -- re-solving on every single one
+      // is wasted work at best and, for an expensive figure (e.g. 11.1's
+      // ~1-3s SDP solve), makes the whole page stutter while you type. Only
+      // re-run once the field loses focus (or Enter is pressed for a
+      // single-line input), not on every "input" event.
+      input.addEventListener("change", () => {
         currentParamValues[p.key] = input.value;
         scheduleAutoRun();
       });
+    } else if (p.type === "range2") {
+      // A single visual track with two independently-draggable handles
+      // (native <input type=range> only ever has one) -- two transparent-
+      // track range inputs are stacked via CSS so only their thumbs are
+      // interactive, with a separate rail/fill pair drawn behind them for
+      // the single-track look. Backed by two plain scalar params (keyLow/
+      // keyHigh), same as if they were two ordinary sliders.
+      const valueSpan = document.createElement("span");
+      valueSpan.className = "params-value";
+      const fmtPair = () => `${currentParamValues[p.keyLow]} .. ${currentParamValues[p.keyHigh]}`;
+      valueSpan.textContent = fmtPair();
+      header.appendChild(valueSpan);
+
+      const track = document.createElement("div");
+      track.className = "params-range2-track";
+      const rail = document.createElement("div");
+      rail.className = "range2-rail";
+      const fill = document.createElement("div");
+      fill.className = "range2-fill";
+      track.appendChild(rail);
+      track.appendChild(fill);
+
+      const lowInput = document.createElement("input");
+      lowInput.type = "range";
+      lowInput.min = p.min;
+      lowInput.max = p.max;
+      lowInput.step = p.step;
+      lowInput.value = currentParamValues[p.keyLow];
+
+      const highInput = document.createElement("input");
+      highInput.type = "range";
+      highInput.min = p.min;
+      highInput.max = p.max;
+      highInput.step = p.step;
+      highInput.value = currentParamValues[p.keyHigh];
+
+      function updateFill() {
+        const lo = parseFloat(lowInput.value);
+        const hi = parseFloat(highInput.value);
+        const pctLo = ((lo - p.min) / (p.max - p.min)) * 100;
+        const pctHi = ((hi - p.min) / (p.max - p.min)) * 100;
+        fill.style.left = pctLo + "%";
+        fill.style.width = Math.max(0, pctHi - pctLo) + "%";
+      }
+      updateFill();
+
+      lowInput.addEventListener("input", () => {
+        let lo = parseFloat(lowInput.value);
+        const hi = parseFloat(highInput.value);
+        if (lo > hi) {
+          lo = hi;
+          lowInput.value = lo;
+        }
+        currentParamValues[p.keyLow] = lo;
+        valueSpan.textContent = fmtPair();
+        updateFill();
+        scheduleAutoRun();
+      });
+      highInput.addEventListener("input", () => {
+        let hi = parseFloat(highInput.value);
+        const lo = parseFloat(lowInput.value);
+        if (hi < lo) {
+          hi = lo;
+          highInput.value = hi;
+        }
+        currentParamValues[p.keyHigh] = hi;
+        valueSpan.textContent = fmtPair();
+        updateFill();
+        scheduleAutoRun();
+      });
+
+      track.appendChild(lowInput);
+      track.appendChild(highInput);
+      input = track;
     } else if (p.type === "select") {
       // A fixed menu of named choices (e.g. "which value field") instead of
       // a numeric range -- the figure switches behavior based on the chosen
@@ -453,6 +636,36 @@ function renderParamsPanel(entry) {
       input.checked = !!currentParamValues[p.key];
       input.addEventListener("change", () => {
         currentParamValues[p.key] = input.checked;
+        scheduleAutoRun();
+      });
+    } else if (p.log) {
+      // Log-scaled range: the <input> itself is a plain linear slider over
+      // an internal 0..LOG_STEPS position, mapped exponentially onto the
+      // real [p.min, p.max] value (both must be > 0) -- so e.g. 0.0001 and
+      // 0.1 get the same drag precision, instead of small values being
+      // squeezed into an unusable sliver of a linear slider's track.
+      const valueSpan = document.createElement("span");
+      valueSpan.className = "params-value";
+      header.appendChild(valueSpan);
+
+      const LOG_STEPS = 1000;
+      const logMin = Math.log(p.min);
+      const logMax = Math.log(p.max);
+      const posToValue = (pos) => Math.exp(logMin + (pos / LOG_STEPS) * (logMax - logMin));
+      const valueToPos = (v) => Math.round(((Math.log(v) - logMin) / (logMax - logMin)) * LOG_STEPS);
+      const fmt = (v) => Number(v.toPrecision(3)).toString();
+
+      valueSpan.textContent = fmt(currentParamValues[p.key]);
+      input = document.createElement("input");
+      input.type = "range";
+      input.min = 0;
+      input.max = LOG_STEPS;
+      input.step = 1;
+      input.value = valueToPos(currentParamValues[p.key]);
+      input.addEventListener("input", () => {
+        const v = posToValue(parseFloat(input.value));
+        currentParamValues[p.key] = v;
+        valueSpan.textContent = fmt(v);
         scheduleAutoRun();
       });
     } else {
@@ -499,7 +712,14 @@ function selectEntry(entry) {
 
   currentParamValues = {};
   if (entry.params) {
-    entry.params.forEach((p) => (currentParamValues[p.key] = p.default));
+    entry.params.forEach((p) => {
+      if (p.type === "range2") {
+        currentParamValues[p.keyLow] = p.default[0];
+        currentParamValues[p.keyHigh] = p.default[1];
+      } else {
+        currentParamValues[p.key] = p.default;
+      }
+    });
     renderParamsPanel(entry);
   } else {
     els.paramsPanel.style.display = "none";
